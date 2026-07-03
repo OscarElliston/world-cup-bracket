@@ -1,0 +1,413 @@
+<title>World Cup 2026</title>
+<style>
+  :root{
+    --paper:#f1ebde;
+    --paper-2:#ece4d2;
+    --ink:#1c1a15;
+    --ink-soft:#4a4638;
+    --ink-faint:#8c8570;
+    --accent:#a3291d;
+    --accent-soft:rgba(163,41,29,0.14);
+    --elim:#c9c2b0;
+
+    --font-title:800 clamp(28px,4vw,46px)/1 "Helvetica Neue", Arial, sans-serif;
+    --font-label:700 11px/1 "Helvetica Neue", Arial, sans-serif;
+    --font-body:400 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono:700 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);}
+
+  body{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .poster-head{
+    text-align:center;
+    padding:34px 20px 6px;
+  }
+  .poster-head h1{
+    margin:0;
+    font:var(--font-title);
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+  }
+
+  .bracket-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:auto;
+    padding:8px 16px;
+  }
+
+  svg#bracket{
+    width:min(94vmin, 900px);
+    min-width:640px;
+    height:auto;
+    display:block;
+    margin:auto;
+  }
+
+  .poster-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    padding:10px clamp(20px,4vw,48px) 28px;
+  }
+
+  .foot-left{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+
+  .legend{
+    display:flex;
+    gap:16px;
+    font:var(--font-mono);
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .legend i{width:14px;height:2.5px;display:inline-block;border-radius:2px;}
+  .legend .sw-pending{background:var(--ink);}
+  .legend .sw-confirmed{background:var(--accent);}
+  .legend .sw-elim{background:var(--elim);}
+
+  button#resetBtn{
+    font:var(--font-label);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink);
+    background:transparent;
+    border:1.5px solid var(--ink);
+    padding:9px 16px;
+    border-radius:2px;
+    cursor:pointer;
+    transition:background .12s ease, color .12s ease;
+  }
+  button#resetBtn:hover{background:var(--ink);color:var(--paper);}
+  button#resetBtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+
+  .credit{
+    font:var(--font-mono);
+    letter-spacing:0.05em;
+    color:var(--ink-faint);
+    text-transform:uppercase;
+    text-align:right;
+  }
+
+  .team-node{
+    cursor:pointer;
+    transform-box:fill-box;
+    transform-origin:center;
+    transition:transform .15s ease;
+  }
+  .team-node:hover{transform:scale(1.1);}
+  .team-node:focus-visible{outline:none;}
+  .team-node:focus-visible circle.ring{stroke:var(--accent);stroke-width:3.5px;}
+  .team-node circle.ring{transition:stroke .15s ease, stroke-width .15s ease;}
+  .team-node.eliminated{opacity:0.45;}
+
+  .code-txt{font:var(--font-mono);fill:var(--ink-soft);text-anchor:middle;pointer-events:none;letter-spacing:0.03em;}
+  .team-node.advanced .code-txt{fill:var(--accent);}
+  .team-node.eliminated .code-txt{fill:var(--ink-faint);}
+
+  .champion-name{font:800 16px/1 "Helvetica Neue", Arial, sans-serif;letter-spacing:0.01em;fill:var(--ink);text-anchor:middle;}
+  .champion-label{font:var(--font-mono);fill:var(--ink-faint);text-anchor:middle;letter-spacing:0.18em;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important;}
+  }
+</style>
+
+<body>
+  <div class="poster-head"><h1>World Cup 2026</h1></div>
+
+  <div class="bracket-wrap">
+    <svg id="bracket" viewBox="0 0 1000 1000" role="img" aria-label="World Cup 2026 knockout bracket">
+      <defs id="staticDefs"></defs>
+      <g id="clipDefs"></g>
+      <g id="lines"></g>
+      <g id="nodes"></g>
+      <g id="center"></g>
+    </svg>
+  </div>
+
+  <div class="poster-foot">
+    <div class="foot-left">
+      <div class="legend">
+        <span><i class="sw-pending"></i>Possible</span>
+        <span><i class="sw-confirmed"></i>Confirmed</span>
+        <span><i class="sw-elim"></i>Eliminated</span>
+      </div>
+      <button id="resetBtn" type="button">Reset Predictions</button>
+    </div>
+    <div class="credit">Live results verified through Jul 1, 2026 &middot; click a flag to advance it</div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var NS = "http://www.w3.org/2000/svg";
+  var CENTER = 500;
+  var RADII = [440, 362, 284, 206, 128, 0];
+  var SIZES = [32, 16, 8, 4, 2, 1];
+  var NODE_R = [34, 29, 25, 22, 19];
+  var START_ANGLE = -90;
+
+  // Order matters: pairs (0,1) (2,3) ... (30,31) must match the real Round of 32 draw.
+  var teams = [
+    {name:"South Africa", code:"RSA", flag:"🇿🇦"},
+    {name:"Canada", code:"CAN", flag:"🇨🇦"},
+    {name:"Brazil", code:"BRA", flag:"🇧🇷"},
+    {name:"Japan", code:"JPN", flag:"🇯🇵"},
+    {name:"Germany", code:"GER", flag:"🇩🇪"},
+    {name:"Paraguay", code:"PAR", flag:"🇵🇾"},
+    {name:"Netherlands", code:"NED", flag:"🇳🇱"},
+    {name:"Morocco", code:"MAR", flag:"🇲🇦"},
+    {name:"Ivory Coast", code:"CIV", flag:"🇨🇮"},
+    {name:"Norway", code:"NOR", flag:"🇳🇴"},
+    {name:"France", code:"FRA", flag:"🇫🇷"},
+    {name:"Sweden", code:"SWE", flag:"🇸🇪"},
+    {name:"Mexico", code:"MEX", flag:"🇲🇽"},
+    {name:"Ecuador", code:"ECU", flag:"🇪🇨"},
+    {name:"England", code:"ENG", flag:"🇬🇧"},
+    {name:"DR Congo", code:"COD", flag:"🇨🇩"},
+    {name:"Belgium", code:"BEL", flag:"🇧🇪"},
+    {name:"Senegal", code:"SEN", flag:"🇸🇳"},
+    {name:"United States", code:"USA", flag:"🇺🇸"},
+    {name:"Bosnia & Herz.", code:"BIH", flag:"🇧🇦"},
+    {name:"Spain", code:"ESP", flag:"🇪🇸"},
+    {name:"Austria", code:"AUT", flag:"🇦🇹"},
+    {name:"Portugal", code:"POR", flag:"🇵🇹"},
+    {name:"Croatia", code:"CRO", flag:"🇭🇷"},
+    {name:"Switzerland", code:"SUI", flag:"🇨🇭"},
+    {name:"Algeria", code:"ALG", flag:"🇩🇿"},
+    {name:"Australia", code:"AUS", flag:"🇦🇺"},
+    {name:"Egypt", code:"EGY", flag:"🇪🇬"},
+    {name:"Argentina", code:"ARG", flag:"🇦🇷"},
+    {name:"Cabo Verde", code:"CPV", flag:"🇨🇻"},
+    {name:"Colombia", code:"COL", flag:"🇨🇴"},
+    {name:"Ghana", code:"GHA", flag:"🇬🇭"}
+  ];
+
+  // Round of 32 results confirmed as of Jul 1, 2026 (England v DR Congo still in progress).
+  var CONFIRMED_R16 = {
+    0: "CAN",  // South Africa 0-1 Canada
+    1: "BRA",  // Brazil 2-1 Japan
+    2: "PAR",  // Germany 1-1 Paraguay (Paraguay on penalties)
+    3: "MAR",  // Netherlands 1-1 Morocco (Morocco on penalties)
+    4: "NOR",  // Ivory Coast 1-2 Norway
+    5: "FRA",  // France 3-0 Sweden
+    6: "MEX"   // Mexico 2-0 Ecuador
+  };
+
+  function angPoint(aDeg, radius){
+    var rad = aDeg * Math.PI / 180;
+    return {x: CENTER + radius * Math.cos(rad), y: CENTER + radius * Math.sin(rad), angle: aDeg};
+  }
+
+  // ---- positions: every round sits on its own perfect concentric circle,
+  // leaves evenly spaced all the way around with no gaps ----
+  var pos = [];
+  pos[0] = [];
+  for (var i0 = 0; i0 < SIZES[0]; i0++){
+    pos[0].push(angPoint(START_ANGLE + i0 * (360 / SIZES[0]), RADII[0]));
+  }
+  for (var r = 1; r <= 4; r++){
+    pos[r] = [];
+    for (var i = 0; i < SIZES[r]; i++){
+      var a1 = pos[r-1][2*i].angle;
+      var a2 = pos[r-1][2*i+1].angle;
+      pos[r].push(angPoint((a1 + a2) / 2, RADII[r]));
+    }
+  }
+  pos[5] = [{x: CENTER, y: CENTER, angle: 0}];
+
+  // ---- state ----
+  function freshWinners(){
+    var r16 = new Array(16).fill(null);
+    for (var idx in CONFIRMED_R16){
+      var code = CONFIRMED_R16[idx];
+      r16[idx] = teams.filter(function(t){ return t.code === code; })[0];
+    }
+    return [
+      teams.slice(),
+      r16,
+      new Array(8).fill(null),
+      new Array(4).fill(null),
+      new Array(2).fill(null),
+      new Array(1).fill(null)
+    ];
+  }
+  var winners = freshWinners();
+
+  function pick(r, i){
+    if (r >= 5) return;
+    var team = winners[r][i];
+    if (!team) return;
+    var nr = r + 1, ni = Math.floor(i / 2);
+    if (winners[nr][ni] && winners[nr][ni].code === team.code) return;
+    winners[nr][ni] = team;
+    var cr = nr, ci = ni;
+    while (cr < 5){
+      var nnr = cr + 1, nni = Math.floor(ci / 2);
+      winners[nnr][nni] = null;
+      cr = nnr; ci = nni;
+    }
+    render();
+  }
+
+  function resetAll(){
+    winners = freshWinners();
+    render();
+  }
+
+  // ---- svg helpers ----
+  function el(tag, attrs){
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  var $staticDefs = document.getElementById("staticDefs");
+  var $clipDefs = document.getElementById("clipDefs");
+  var $lines = document.getElementById("lines");
+  var $nodes = document.getElementById("nodes");
+  var $center = document.getElementById("center");
+
+  function clearGroup(g){ while (g.firstChild) g.removeChild(g.firstChild); }
+
+  function flagCircle(parent, p, radius, flag, clipId){
+    var clip = el("clipPath", {id: clipId});
+    clip.appendChild(el("circle", {cx: p.x, cy: p.y, r: radius}));
+    $clipDefs.appendChild(clip);
+
+    var clipped = el("g", {"clip-path": "url(#" + clipId + ")"});
+    var flagTxt = el("text", {
+      x: p.x, y: p.y, style: "font-size:" + (radius * 2.5) + "px",
+      "text-anchor": "middle", "dominant-baseline": "central"
+    });
+    flagTxt.textContent = flag;
+    clipped.appendChild(flagTxt);
+    parent.appendChild(clipped);
+  }
+
+  function render(){
+    clearGroup($lines);
+    clearGroup($nodes);
+    clearGroup($center);
+    clearGroup($clipDefs);
+
+    for (var r = 0; r <= 4; r++){
+      for (var i = 0; i < SIZES[r]; i++){
+        var team = winners[r][i];
+        var p = pos[r][i];
+        var childIdx = Math.floor(i / 2);
+        var childPos = pos[r+1][childIdx];
+        var childTeam = winners[r+1][childIdx];
+
+        var confirmed = !!(team && childTeam && childTeam.code === team.code);
+        var eliminated = !!(team && childTeam && !confirmed);
+
+        // Skeleton line is always drawn, whether or not this slot is decided yet.
+        var line;
+        if (confirmed){
+          line = el("line", {
+            x1: p.x, y1: p.y, x2: childPos.x, y2: childPos.y,
+            stroke: "var(--accent)", "stroke-width": "4.5", "stroke-linecap": "round"
+          });
+        } else if (eliminated){
+          line = el("line", {
+            x1: p.x, y1: p.y, x2: childPos.x, y2: childPos.y,
+            stroke: "var(--elim)", "stroke-width": "1.6",
+            "stroke-dasharray": "1 5", "stroke-linecap": "round", opacity: "0.7"
+          });
+        } else {
+          line = el("line", {
+            x1: p.x, y1: p.y, x2: childPos.x, y2: childPos.y,
+            stroke: "var(--ink)", "stroke-width": "2.25", "stroke-linecap": "round"
+          });
+        }
+        $lines.appendChild(line);
+
+        if (team){
+          var cls = "team-node" + (confirmed ? " advanced" : "") + (eliminated ? " eliminated" : "");
+          var g = el("g", {
+            class: cls, tabindex: "0", role: "button",
+            "aria-label": team.name + (confirmed ? " (advancing)" : eliminated ? " (eliminated)" : " (click to advance)")
+          });
+
+          flagCircle(g, p, NODE_R[r], team.flag, "clip" + r + "_" + i);
+
+          var ringColor = confirmed ? "var(--accent)" : eliminated ? "var(--elim)" : "var(--ink)";
+          g.appendChild(el("circle", {
+            class: "ring", cx: p.x, cy: p.y, r: NODE_R[r],
+            fill: "none", stroke: ringColor, "stroke-width": confirmed ? "3.5" : eliminated ? "1.6" : "2.25"
+          }));
+
+          var labelAngleRad = p.angle * Math.PI / 180;
+          var lx = p.x + Math.cos(labelAngleRad) * (NODE_R[r] + 15);
+          var ly = p.y + Math.sin(labelAngleRad) * (NODE_R[r] + 15);
+          var codeTxt = el("text", {x: lx, y: ly + 3, class: "code-txt"});
+          codeTxt.textContent = team.code;
+          g.appendChild(codeTxt);
+
+          (function(rr, ii){
+            g.addEventListener("click", function(){ pick(rr, ii); });
+            g.addEventListener("keydown", function(ev){
+              if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); pick(rr, ii); }
+            });
+          })(r, i);
+
+          $nodes.appendChild(g);
+        } else {
+          $nodes.appendChild(el("circle", {
+            cx: p.x, cy: p.y, r: "4.5", fill: "var(--ink)"
+          }));
+        }
+      }
+    }
+
+    // champion / trophy
+    var champ = winners[5][0];
+    var trophy = el("g", {transform: "translate(" + CENTER + "," + CENTER + ")"});
+    trophy.appendChild(el("circle", {
+      cx: 0, cy: 0, r: 62, fill: "var(--paper)",
+      stroke: champ ? "var(--accent)" : "var(--ink)", "stroke-width": champ ? "3.5" : "1.6",
+      "stroke-dasharray": champ ? "0" : "3 5"
+    }));
+    var tg = el("g", {transform: "translate(0,-6) scale(1.35)", fill: "none", stroke: "var(--ink)", "stroke-width": "2.6", "stroke-linejoin": "round", "stroke-linecap": "round"});
+    tg.appendChild(el("path", {d: "M -14,-26 C -14,-8 -8,2 0,2 C 8,2 14,-8 14,-26 Z"}));
+    tg.appendChild(el("path", {d: "M -14,-24 C -25,-24 -25,-9 -14,-8"}));
+    tg.appendChild(el("path", {d: "M 14,-24 C 25,-24 25,-9 14,-8"}));
+    tg.appendChild(el("line", {x1: 0, y1: 2, x2: 0, y2: 12}));
+    tg.appendChild(el("path", {d: "M -12,12 L 12,12 L 9,19 L -9,19 Z", fill: "var(--ink)", stroke: "none"}));
+    trophy.appendChild(tg);
+    $center.appendChild(trophy);
+
+    if (champ){
+      var cName = el("text", {x: 0, y: 46, class: "champion-name"});
+      cName.textContent = champ.name;
+      trophy.appendChild(cName);
+    } else {
+      var eLabel = el("text", {x: 0, y: 44, class: "champion-label"});
+      eLabel.textContent = "CHAMPION";
+      trophy.appendChild(eLabel);
+    }
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+  render();
+})();
+</script>
+</body>
