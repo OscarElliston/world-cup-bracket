@@ -15,7 +15,7 @@
     --paper-2:#ece7da;
     --ink:#201e17;
     --ink-soft:#4a4638;
-    --ink-faint:#8c8570;
+    --ink-faint:#6b644f; /* 5.1:1 on paper — WCAG AA for the small mono text that uses it */
 
     /* connector + ring vocabulary (monochrome poster look) */
     --line:#201e17;          /* default skeleton line */
@@ -96,18 +96,6 @@
     padding:10px clamp(20px,4vw,48px) 28px;
   }
 
-  .foot-left{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
-
-  .legend{
-    display:flex;
-    gap:16px;
-    font:var(--font-mono);
-    color:var(--ink-soft);
-    text-transform:uppercase;
-    letter-spacing:0.04em;
-  }
-  .legend span{display:flex;align-items:center;gap:6px;}
-  .legend i{width:14px;height:2.5px;display:inline-block;border-radius:2px;}
   .poster-foot{
     justify-content:center;
     text-align:center;
@@ -154,7 +142,6 @@
   .code-txt{display:none;}
 
   .champion-name{font:700 15px/1 "Inter", "Helvetica Neue", Arial, sans-serif;letter-spacing:-0.01em;fill:var(--ink);text-anchor:middle;}
-  .champion-label{font:var(--font-mono);fill:var(--ink-faint);text-anchor:middle;letter-spacing:0.18em;}
 
   .hover-icon{cursor:default;}
   .hover-icon circle.dial{transition:stroke .12s ease, fill .12s ease;}
@@ -637,7 +624,19 @@
   $backdrop.addEventListener("click", closeSheet);
   $sheetClose.addEventListener("click", closeSheet);
   document.addEventListener("keydown", function(ev){
-    if (ev.key === "Escape" && $sheet.classList.contains("visible")) closeSheet();
+    if (!$sheet.classList.contains("visible")) return;
+    if (ev.key === "Escape"){ closeSheet(); return; }
+    // Trap Tab inside the dialog: without this, focus wanders into the
+    // (visually obscured) page behind the sheet.
+    if (ev.key === "Tab"){
+      var stops = [$sheetAdvance, $sheetClose].filter(function(b){ return !b.hidden; });
+      var idx = stops.indexOf(document.activeElement);
+      var next = ev.shiftKey
+        ? (idx <= 0 ? stops[stops.length - 1] : stops[idx - 1])
+        : (idx === stops.length - 1 || idx < 0 ? stops[0] : stops[idx + 1]);
+      ev.preventDefault();
+      next.focus();
+    }
   });
 
   function flagCircle(parent, p, radius, isoCode, clipId){
@@ -905,7 +904,24 @@
     }
   }
 
-  document.getElementById("resetBtn").addEventListener("click", resetAll);
+  // Two-step reset: one stray tap (easy on mobile) shouldn't wipe every pick.
+  var $resetBtn = document.getElementById("resetBtn");
+  var resetArmTimer = null;
+  $resetBtn.addEventListener("click", function(){
+    if ($resetBtn.dataset.armed){
+      delete $resetBtn.dataset.armed;
+      clearTimeout(resetArmTimer);
+      $resetBtn.textContent = "Reset predictions";
+      resetAll();
+    } else {
+      $resetBtn.dataset.armed = "1";
+      $resetBtn.textContent = "Tap again to reset";
+      resetArmTimer = setTimeout(function(){
+        delete $resetBtn.dataset.armed;
+        $resetBtn.textContent = "Reset predictions";
+      }, 3000);
+    }
+  });
 
   var $shareBtn = document.getElementById("shareBtn");
   var shareFeedbackTimer = null;
