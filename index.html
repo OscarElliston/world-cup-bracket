@@ -124,7 +124,7 @@
   }
   .foot-inner .dot{opacity:0.5;}
 
-  button#resetBtn{
+  button#resetBtn, button#shareBtn{
     font:var(--font-mono);
     letter-spacing:0.08em;
     text-transform:uppercase;
@@ -136,8 +136,8 @@
     border-bottom:1px solid transparent;
     transition:color .12s ease, border-color .12s ease;
   }
-  button#resetBtn:hover{color:var(--ink);border-bottom-color:var(--ink);}
-  button#resetBtn:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
+  button#resetBtn:hover, button#shareBtn:hover{color:var(--ink);border-bottom-color:var(--ink);}
+  button#resetBtn:focus-visible, button#shareBtn:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
 
   .team-node{
     cursor:pointer;
@@ -253,6 +253,8 @@
   <div class="poster-foot">
     <div class="foot-inner">
       <span>Click a flag to advance it</span>
+      <span class="dot">·</span>
+      <button id="shareBtn" type="button">Share bracket</button>
       <span class="dot">·</span>
       <button id="resetBtn" type="button">Reset predictions</button>
     </div>
@@ -451,6 +453,54 @@
   }
   var winners = freshWinners();
 
+  // ---- persistence + sharing ----
+  // Picks are stored as one code (or "-") per slot across rounds 1-5, in
+  // order. Restoring only fills slots that are still empty after the real
+  // results are seeded, and only when the code matches one of the two teams
+  // actually feeding that slot — so a stale save or shared link made before
+  // new real results landed degrades gracefully instead of corrupting state.
+  var STORAGE_KEY = "wc26-picks";
+
+  function serializeState(){
+    var out = [];
+    for (var r = 1; r <= 5; r++){
+      for (var i = 0; i < SIZES[r]; i++) out.push(winners[r][i] ? winners[r][i].code : "-");
+    }
+    return out.join(".");
+  }
+
+  function applyCodes(str){
+    if (!str) return;
+    var codes = str.split(".");
+    var idx = 0;
+    for (var r = 1; r <= 5; r++){
+      for (var i = 0; i < SIZES[r]; i++, idx++){
+        var code = codes[idx];
+        if (!code || code === "-" || winners[r][i]) continue;
+        var a = winners[r-1][2*i], b = winners[r-1][2*i+1];
+        var match = (a && a.code === code) ? a : (b && b.code === code) ? b : null;
+        if (match) winners[r][i] = match;
+      }
+    }
+  }
+
+  function savePicks(){
+    try { localStorage.setItem(STORAGE_KEY, serializeState()); } catch(e){}
+  }
+
+  function clearSavedPicks(){
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  }
+
+  // A shared link's picks take precedence over this browser's saved picks.
+  (function restore(){
+    var fromHash = /^#p=/.test(location.hash) ? decodeURIComponent(location.hash.slice(3)) : null;
+    var fromStore = null;
+    try { fromStore = localStorage.getItem(STORAGE_KEY); } catch(e){}
+    applyCodes(fromHash || fromStore);
+  })();
+
   function pick(r, i){
     if (r >= 5) return;
     var team = winners[r][i];
@@ -464,11 +514,13 @@
       winners[nnr][nni] = null;
       cr = nnr; ci = nni;
     }
+    savePicks();
     render();
   }
 
   function resetAll(){
     winners = freshWinners();
+    clearSavedPicks();
     render();
   }
 
@@ -854,6 +906,27 @@
   }
 
   document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+  var $shareBtn = document.getElementById("shareBtn");
+  var shareFeedbackTimer = null;
+  $shareBtn.addEventListener("click", function(){
+    var hash = "#p=" + serializeState();
+    history.replaceState(null, "", location.pathname + location.search + hash);
+    var url = location.href;
+    function feedback(msg){
+      $shareBtn.textContent = msg;
+      clearTimeout(shareFeedbackTimer);
+      shareFeedbackTimer = setTimeout(function(){ $shareBtn.textContent = "Share bracket"; }, 2200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(
+        function(){ feedback("Link copied!"); },
+        function(){ feedback("Copy the address bar"); }
+      );
+    } else {
+      feedback("Copy the address bar");
+    }
+  });
 
   render();
 })();
