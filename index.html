@@ -340,10 +340,11 @@
   // winners of R32 matches 2k and 2k+1 per the real bracket topology above.
   // Only populated once Round of 32 is fully complete (it now is).
   var CONFIRMED_QF = {
-    0: "MAR", 1: "FRA", 4: "NOR", 5: "ENG"
-    // 2 (Portugal v Spain), 3 (USA v Belgium), 6 (Argentina v Egypt),
-    // 7 (Switzerland v Colombia) not yet played
+    0: "MAR", 1: "FRA", 2: "ESP", 3: "BEL", 4: "NOR", 5: "ENG", 6: "ARG", 7: "SUI"
   };
+  // Round of 16 complete. Quarterfinals: Morocco v France, Spain v Belgium,
+  // Norway v England, Argentina v Switzerland. Add CONFIRMED_SF (QF match
+  // index 0-3 -> winner code, wired into winners[3]) once QF games finish.
 
   // Hover info per round: MATCH_INFO_BY_ROUND[round][matchIndex]. Round 0 is the
   // Round of 32 (keyed like CONFIRMED_R16); round 1 is the Round of 16 (8
@@ -373,12 +374,12 @@
     1: {
       0: {played: true,  score: "Morocco 3–0 Canada",  date: "Sat, Jul 4, 2026", time: "18:00 GMT+1"},  // Canada v Morocco — Houston
       1: {played: true,  score: "France 1–0 Paraguay", date: "Sat, Jul 4, 2026", time: "22:00 GMT+1"},  // Paraguay v France — Philadelphia
-      2: {played: false, date: "Mon, Jul 6, 2026", time: "20:00 GMT+1"},  // Portugal v Spain — Dallas
-      3: {played: false, date: "Tue, Jul 7, 2026", time: "01:00 GMT+1"},  // USA v Belgium — Seattle
+      2: {played: true,  score: "Spain 1–0 Portugal",       date: "Mon, Jul 6, 2026", time: "20:00 GMT+1"},  // Dallas
+      3: {played: true,  score: "Belgium 4–1 United States", date: "Tue, Jul 7, 2026", time: "01:00 GMT+1"},  // Seattle
       4: {played: true,  score: "Norway 2–1 Brazil",  date: "Sun, Jul 5, 2026", time: "21:00 GMT+1"},  // Brazil v Norway — MetLife
       5: {played: true,  score: "England 3–2 Mexico", date: "Mon, Jul 6, 2026", time: "01:00 GMT+1"},  // Mexico v England — Estadio Azteca
-      6: {played: false, date: "Tue, Jul 7, 2026", time: "17:00 GMT+1"},  // (Argentina/Cabo Verde) v (Australia/Egypt) — Atlanta
-      7: {played: false, date: "Tue, Jul 7, 2026", time: "21:00 GMT+1"}   // Switzerland v (Colombia/Ghana) — Vancouver
+      6: {played: true,  score: "Argentina 3–2 Egypt",                                     date: "Tue, Jul 7, 2026", time: "17:00 GMT+1"},  // Atlanta
+      7: {played: true,  score: "Switzerland 0–0 Colombia (Switzerland won 4–3 on penalties)", date: "Tue, Jul 7, 2026", time: "21:00 GMT+1"}   // Vancouver
     },
     2: {
       0: {played: false, date: "Thu, Jul 9, 2026",  time: "21:00 GMT+1"},  // Boston
